@@ -8,6 +8,7 @@ public class AnimationManager : MonoBehaviour
     Animator animatorReference;
 
     public UnityEvent endSurpriseEvt;
+    public UnityEvent endPivotEvt;
 
     // Start is called before the first frame update
     void Start()
@@ -17,7 +18,9 @@ public class AnimationManager : MonoBehaviour
 
     public void goIdle()
     {
+
         animatorReference.SetFloat("speed", 0f);
+
     }
 
     public void goRun()
@@ -35,6 +38,22 @@ public class AnimationManager : MonoBehaviour
     {
         animatorReference.SetBool("isSurprised", false);
         endSurpriseEvt.Invoke();
+
+
+
+    }
+
+    public void pivot180()
+    {
+
+        animatorReference.SetBool("isPivoting", true);
+    }
+
+    public void endPivot180()
+    {
         
+        animatorReference.SetBool("isPivoting", false);
+        endPivotEvt.Invoke();
+        Debug.Log("End pivoting");
     }
 }

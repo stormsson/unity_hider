@@ -15,21 +15,25 @@ public class Behavior : MonoBehaviour
 
     Vector3 lastPlayerKnownPosition;
     GameObject playerRef;
+    GameObject fleeingFromRef;
 
     enum ACTIVITY_STATE {
         IDLE,
         SURPRISED,
         SEEKING,
-        SEARCHING
+        SEARCHING,
+        FLEEING
     };
 
-    ACTIVITY_STATE currentStatus;
+    ACTIVITY_STATE previousState;
+    ACTIVITY_STATE currentState;
 
     
     float runningSpeed = 3f;
     float rotationSpeed = 2f;
     public float minSeekingDistance = 1f;
 
+    protected bool oppositeSeek = false;
 
     protected bool isSurprised = false;
 
@@ -62,24 +66,63 @@ public class Behavior : MonoBehaviour
         // when the animation ends, we signal the behavior manager that must change the state
         animationManager.endSurpriseEvt.AddListener(goUnsurprised);
 
+        // when the animation ends, we signal the behavior manager that must change the state
+        animationManager.endPivotEvt.AddListener(restorePreviousState);
+
 
         animatorReference = bodyObjReference.GetComponent<Animator>();
         if (!animatorReference)
         {
             Debug.LogError("animatorReference object inside body object "+ bodyObjReference.name + "not found :(");
         }
-        currentStatus = ACTIVITY_STATE.IDLE;
 
+        currentState = ACTIVITY_STATE.IDLE;
+        previousState = ACTIVITY_STATE.IDLE;
 
-
-        
     }
 
-    protected void doSeekPlayer()
+    protected void RunTowardTarget(Vector3 target)
+    {
+        if (Vector3.Distance(target, transform.position) <= minSeekingDistance)
+        {
+            goIdle();
+            return;
+        }
+       
+        Vector3 directionBetween = (target - transform.position);
+        directionBetween.y *= 0;
+
+        float angle = Vector3.Angle(transform.forward, directionBetween);
+
+        bool onTheRight = Vector3.Dot(transform.right, directionBetween) > 0;
+
+
+
+        if (!onTheRight)
+        {
+            angle *= -1;
+        }
+
+        if(Mathf.Abs(angle) > 135)
+        {
+            animationManager.pivot180();
+
+        } else
+        {
+            animationManager.goRun();
+
+            transform.Translate(0, 0, Time.deltaTime * runningSpeed);
+            transform.Rotate(0, angle * Time.deltaTime * rotationSpeed, 0);
+        }
+
+        
+
+    }
+    
+    protected void DoSeekPlayer()
     {
         if (playerRef)
         {
-
 
             if (Vector3.Distance(playerRef.transform.position, transform.position) <= minSeekingDistance)
             {
@@ -99,31 +142,53 @@ public class Behavior : MonoBehaviour
                 playerRef.transform.position = new Vector3(playerRef.transform.position.x, 0, playerRef.transform.position.z);
             }
 
-            
+            RunTowardTarget(playerRef.transform.position);           
 
-            Vector3 directionBetween = (playerRef.transform.position - transform.position);
+        }
+        else
+        {
+            Debug.LogError("I should seek player but I have no player ref");
+        }
+        
+    }
+
+    void DoFlee()
+    {
+        if(fleeingFromRef)
+        {
+            // if too close, die
+
+            //if (Vector3.Distance(playerRef.transform.position, transform.position) <= minSeekingDistance)
+            //{
+
+            //    goIdle();
+            //    return;
+            //}
+
+            Vector3 directionBetween = (fleeingFromRef.transform.position - transform.position);
             directionBetween.y *= 0;
 
-            float angle = Vector3.Angle(transform.forward, directionBetween);            
+            Vector3 target = fleeingFromRef.transform.position + directionBetween;
+            RunTowardTarget(target);
+
+            float angle = Vector3.Angle(transform.forward, directionBetween);
 
             bool onTheRight = Vector3.Dot(transform.right, directionBetween) > 0;
-            
+
 
 
             if (!onTheRight)
             {
                 angle *= -1;
             }
-            transform.Translate(0, 0, Time.deltaTime * runningSpeed );
-            transform.Rotate(0, angle * Time.deltaTime * rotationSpeed, 0);
-           
+
 
         }
         else
         {
-            Debug.LogError("no player ref");
+            Debug.LogError("I should flee but I have no predator to flee from");
+
         }
-        
     }
 
     // Update is called once per frame
@@ -135,11 +200,38 @@ public class Behavior : MonoBehaviour
             animationManager.goSurprised();            
         }
 
+        if (Input.GetKeyDown("s"))
+        {
+
+            seekPlayer(GameObject.Find("Player"));
+            
+        }
+
+        if (Input.GetKeyDown("p"))
+        {            
+            animationManager.pivot180();
+        }
+
+        if (Input.GetKeyDown("i"))
+        {
+            animationManager.goIdle();
+
+        }
+
+        if (Input.GetKeyDown("r"))
+        {
+            RunTowardTarget(GameObject.Find("Player").transform.position);            
+        }
+
         //Debug.Log("current STatus:" + currentStatus);
-        switch (currentStatus)
+        switch (currentState)
         {
             case ACTIVITY_STATE.SEEKING:
-                doSeekPlayer();
+                DoSeekPlayer();
+                break;
+
+            case ACTIVITY_STATE.FLEEING:
+                DoFlee();
                 break;
 
             default:
@@ -151,20 +243,23 @@ public class Behavior : MonoBehaviour
 
     public void goIdle()
     {
-        currentStatus = ACTIVITY_STATE.IDLE;
+        previousState = currentState;
+        currentState = ACTIVITY_STATE.IDLE;
         animationManager.goIdle();
     }
 
     public void goSurprised()
     {
-        currentStatus = ACTIVITY_STATE.SURPRISED;
+        previousState = currentState;
+        currentState = ACTIVITY_STATE.SURPRISED;
         isSurprised = true;
         
     }
 
     public void goUnsurprised()
     {
-        currentStatus = ACTIVITY_STATE.IDLE;
+        previousState = currentState;
+        currentState = ACTIVITY_STATE.IDLE;
         isSurprised = false;
 
         Debug.Log("Blimey, I'm not surprised anymore");
@@ -177,19 +272,34 @@ public class Behavior : MonoBehaviour
 
         if (Vector3.Distance(playerRef.transform.position, transform.position) > minSeekingDistance)
         {
-            currentStatus = ACTIVITY_STATE.SEEKING;
-            animationManager.goRun();
+            previousState = currentState;
+            currentState = ACTIVITY_STATE.SEEKING;            
             Debug.Log("seeking player");
         }        
+    }
+
+    public void fleeFromTarget(GameObject target)
+    {
+        fleeingFromRef = target;
+        previousState = currentState;
+        currentState = ACTIVITY_STATE.FLEEING;
+        animationManager.goRun();
+        Debug.Log("Fleeing");
     }
 
     public void searchPlayer(GameObject player)
     {
         return;
-        currentStatus = ACTIVITY_STATE.IDLE;
+        currentState = ACTIVITY_STATE.IDLE;
 
 
         animatorReference.SetFloat("speed", 0);
         Debug.Log("searching for player");
+    }
+
+    public void restorePreviousState()
+    {
+        currentState = previousState;
+        Debug.Log("Restored state " + currentState);
     }
 }
