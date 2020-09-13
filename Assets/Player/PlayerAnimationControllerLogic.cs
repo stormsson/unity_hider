@@ -113,7 +113,7 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
         
         Gizmos.DrawSphere(rightFoot.transform.position, 0.1f);
 
-        Gizmos.DrawLine(transform.position, transform.position + transform.forward * 5);
+        //Gizmos.DrawLine(transform.position, transform.position + transform.forward * 5);
 
         Gizmos.DrawSphere(tmpL, 0.05f);
         Gizmos.DrawSphere(tmpR, 0.05f);
@@ -147,10 +147,19 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
                 
 
                 lFRot = Quaternion.FromToRotation(transform.up, lFHit.normal) * transform.rotation;
-
-                leftIKTarget.position = footPos;
-                animator.SetIKPosition(AvatarIKGoal.LeftFoot, leftIKTarget.position);
                 animator.SetIKRotation(AvatarIKGoal.LeftFoot, lFRot);
+
+                Vector3 distance = footPos - animator.GetIKPosition(AvatarIKGoal.LeftFoot);
+
+                if(distance.sqrMagnitude > 0.05f)
+                {
+                    leftIKTarget.position = footPos;
+                    animator.SetIKPosition(AvatarIKGoal.LeftFoot, leftIKTarget.position);
+                    
+                }
+
+                
+                
             }
         }
 
@@ -176,17 +185,22 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
 
 
                 rFRot = Quaternion.FromToRotation(transform.up, rFHit.normal) * transform.rotation;
-                
-                rightIKTarget.position = footPos;
-                //Debug.Log(rightIKTarget.position.ToString() + " || " + footPos.ToString());
-
-                animator.SetIKPosition(AvatarIKGoal.RightFoot, rightIKTarget.position);
                 animator.SetIKRotation(AvatarIKGoal.RightFoot, rFRot);
+
+                Vector3 distance = footPos - animator.GetIKPosition(AvatarIKGoal.RightFoot);
+
+                if (distance.sqrMagnitude > 0.05f)
+                {
+                    rightIKTarget.position = footPos;
+                    animator.SetIKPosition(AvatarIKGoal.RightFoot, rightIKTarget.position);
+                    
+                }                
+                
 
             }
         }
 
-        if(lFHit.point.y <= rFHit.point.y)
+        if (lFHit.point.y <= rFHit.point.y)
         {
             fixPosition(lFHit.point);
         }
@@ -203,7 +217,7 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
     float posLerp = 0f;
     void fixPosition(Vector3 pos)
     {
-        Debug.Log("Transform position: "+transform.position.ToString()+"but should be: " + pos.ToString());
+
         if(Mathf.Abs(transform.position.y - pos.y) > 0.05f)
         {
             if (posLerp > 1.0f)
@@ -211,10 +225,9 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
                 posLerp = 0f;
             }
 
-            Debug.Log("applying magic");
             Vector3 newPos = transform.position;
             newPos.y = Mathf.Lerp(transform.position.y, pos.y, posLerp);
-            posLerp += 0.1f * Time.deltaTime;
+            posLerp += 0.05f * Time.deltaTime;
             transform.position = newPos;
         }
 
