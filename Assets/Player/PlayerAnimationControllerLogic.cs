@@ -8,8 +8,6 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
 
     const int MAX_IDLE_ANIMATIONS = 3;
 
-    const float HIPS_DEFAULT_HEIGHT = 1.015754f;
-
     // idle Transitions handling
     private float idleMultiplier;
     private float idleSelector = 0f;
@@ -18,32 +16,12 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
     private float idleTransitionTime = 0.25f;
     private float idleTimeElapsed = 0f;
 
-
     // IK FEET
 
     [Header("IK Parameters")]
     public Transform leftFoot;
     public Transform rightFoot;
     public float distanceToGround = 0.8f;
-
-
-
-    // knees
-    //public Transform hintLeft;
-    //public Transform hintRight;
-
-    //public float ikWeight = 1;
-
-    Vector3 lFPos;
-    Vector3 rFpos;
-
-    Quaternion lFRot;
-    Quaternion rFRot;
-
-    float lFWeight;
-    float rFWeight;
-
-
 
     Transform hipsTransform;
 
@@ -53,17 +31,12 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
         idleMultiplier = 1f / ((float)MAX_IDLE_ANIMATIONS);
 
         hipsTransform = transform.Find("mixamorig:Hips");
-
     }
 
     private void Update()
     {
         if (Mathf.Abs(idleSelector - idleTarget) > 0.01)
         {
-
-
-
-
             if (idleTimeElapsed < idleTransitionTime)
             {
                 idleSelector = Mathf.Lerp(lastIdleSelector, idleTarget, idleTimeElapsed / idleTransitionTime);
@@ -76,11 +49,6 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
                 animator.SetFloat("idleAnimationSelector", idleSelector);
             }
         }
-
-
-        // IK Target
-
-
     }
 
     public void endIdleAnimation()
@@ -97,104 +65,25 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
             idleTimeElapsed = 0f;
             Debug.Log("I want to change to " + idleTarget);
         }
-
-
     }
-
-
-    private Vector3 tmpL;
-    private Vector3 tmpR;
 
     void OnDrawGizmos()
     {
-        Gizmos.DrawSphere(leftFoot.transform.position, 0.1f);
+        if (!TryGetComponent<Animator>(out var anim))
+            return;
 
-        Gizmos.DrawSphere(rightFoot.transform.position, 0.1f);
+        anim.logWarnings = false;
 
-        //Gizmos.DrawLine(transform.position, transform.position + transform.forward * 5);
+        Gizmos.DrawSphere(anim.GetIKPosition(AvatarIKGoal.LeftFoot), 0.1f);
+        Gizmos.DrawSphere(anim.GetIKPosition(AvatarIKGoal.RightFoot), 0.1f);
 
-        Gizmos.DrawSphere(tmpL, 0.05f);
-        Gizmos.DrawSphere(tmpR, 0.05f);
+        anim.logWarnings = true;
     }
 
     private void OnAnimatorIK(int layerIndex)
     {
-
-
-        // LEFT FOOT
-
-        lFWeight = animator.GetFloat("LeftFootGround");
-
-        animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, lFWeight);
-        animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, lFWeight);
-
-        RaycastHit lFHit;
-        Vector3 lPos = leftFoot.transform.position;
-        Ray ray = new Ray(lPos + Vector3.up, Vector3.down);
-
-
-
-        if (Physics.Raycast(ray, out lFHit, 5.0f))
-        {
-            if (lFHit.transform.tag == "Walkable")
-            {
-                Vector3 footPos = lFHit.point;
-                footPos.y += distanceToGround;
-                tmpL = footPos;
-
-
-
-                lFRot = Quaternion.FromToRotation(transform.up, lFHit.normal) * transform.rotation;
-                animator.SetIKRotation(AvatarIKGoal.LeftFoot, lFRot);
-
-                Vector3 distance = footPos - animator.GetIKPosition(AvatarIKGoal.LeftFoot);
-
-                if(distance.sqrMagnitude > 0.05f)
-                {
-                    animator.SetIKPosition(AvatarIKGoal.LeftFoot, footPos);
-
-                }
-
-
-
-            }
-        }
-
-
-
-        // RIGHT FOOT
-        rFWeight = animator.GetFloat("RightFootGround");
-        animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, rFWeight);
-        animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, rFWeight);
-
-        RaycastHit rFHit;
-        Vector3 rPos = rightFoot.transform.position;
-
-        ray = new Ray(rPos + Vector3.up, Vector3.down);
-
-        if (Physics.Raycast(ray, out rFHit, 5.0f))
-        {
-            if (rFHit.transform.tag == "Walkable")
-            {
-                Vector3 footPos = rFHit.point;
-                footPos.y += distanceToGround;
-                tmpR = footPos;
-
-
-                rFRot = Quaternion.FromToRotation(transform.up, rFHit.normal) * transform.rotation;
-                animator.SetIKRotation(AvatarIKGoal.RightFoot, rFRot);
-
-                Vector3 distance = footPos - animator.GetIKPosition(AvatarIKGoal.RightFoot);
-
-                if (distance.sqrMagnitude > 0.05f)
-                {
-                    animator.SetIKPosition(AvatarIKGoal.RightFoot, footPos);
-
-                }
-
-
-            }
-        }
+        DoFootIK(AvatarIKGoal.LeftFoot, leftFoot, animator.GetFloat("LeftFootGround"), out var rFHit);
+        DoFootIK(AvatarIKGoal.RightFoot, rightFoot, animator.GetFloat("RightFootGround"), out var lFHit);
 
         if (lFHit.point.y <= rFHit.point.y)
         {
@@ -204,16 +93,41 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
         {
             fixPosition(rFHit.point);
         }
+    }
 
+    private void DoFootIK(AvatarIKGoal foot, Transform footTransform, float weight, out RaycastHit hit)
+    {
+        animator.SetIKPositionWeight(foot, weight);
+        animator.SetIKRotationWeight(foot, weight);
 
+        Vector3 pos = footTransform.position;
 
+        var ray = new Ray(pos + Vector3.up, Vector3.down);
 
+        if (Physics.Raycast(ray, out hit, 5.0f))
+        {
+            if (hit.transform.tag == "Walkable")
+            {
+                Vector3 footPos = hit.point;
+                footPos.y += distanceToGround;
+
+                var rot = Quaternion.FromToRotation(transform.up, hit.normal) * transform.rotation;
+                animator.SetIKRotation(foot, rot);
+
+                Vector3 distance = footPos - animator.GetIKPosition(foot);
+
+                if (distance.sqrMagnitude > 0.015f)
+                {
+                    animator.SetIKPosition(foot, footPos);
+
+                }
+            }
+        }
     }
 
     float posLerp = 0f;
     void fixPosition(Vector3 pos)
     {
-
         if(Mathf.Abs(transform.position.y - pos.y) > 0.05f)
         {
             if (posLerp > 1.0f)
@@ -226,7 +140,5 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
             posLerp += 0.05f * Time.deltaTime;
             transform.position = newPos;
         }
-
     }
-
 }
