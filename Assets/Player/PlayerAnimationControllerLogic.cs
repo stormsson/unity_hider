@@ -25,10 +25,8 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
     public Transform leftFoot;
     public Transform rightFoot;
     public float distanceToGround = 0.8f;
-    public Transform leftIKTarget;
-    public Transform rightIKTarget;
 
-    
+
 
     // knees
     //public Transform hintLeft;
@@ -110,7 +108,7 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
     void OnDrawGizmos()
     {
         Gizmos.DrawSphere(leftFoot.transform.position, 0.1f);
-        
+
         Gizmos.DrawSphere(rightFoot.transform.position, 0.1f);
 
         //Gizmos.DrawLine(transform.position, transform.position + transform.forward * 5);
@@ -124,7 +122,7 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
 
 
         // LEFT FOOT
-        
+
         lFWeight = animator.GetFloat("LeftFootGround");
 
         animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, lFWeight);
@@ -139,12 +137,12 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
         if (Physics.Raycast(ray, out lFHit, 5.0f))
         {
             if (lFHit.transform.tag == "Walkable")
-            {                
+            {
                 Vector3 footPos = lFHit.point;
                 footPos.y += distanceToGround;
                 tmpL = footPos;
 
-                
+
 
                 lFRot = Quaternion.FromToRotation(transform.up, lFHit.normal) * transform.rotation;
                 animator.SetIKRotation(AvatarIKGoal.LeftFoot, lFRot);
@@ -153,13 +151,12 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
 
                 if(distance.sqrMagnitude > 0.05f)
                 {
-                    leftIKTarget.position = footPos;
-                    animator.SetIKPosition(AvatarIKGoal.LeftFoot, leftIKTarget.position);
-                    
+                    animator.SetIKPosition(AvatarIKGoal.LeftFoot, footPos);
+
                 }
 
-                
-                
+
+
             }
         }
 
@@ -174,7 +171,7 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
         Vector3 rPos = rightFoot.transform.position;
 
         ray = new Ray(rPos + Vector3.up, Vector3.down);
-        
+
         if (Physics.Raycast(ray, out rFHit, 5.0f))
         {
             if (rFHit.transform.tag == "Walkable")
@@ -191,11 +188,10 @@ public class PlayerAnimationControllerLogic : MonoBehaviour
 
                 if (distance.sqrMagnitude > 0.05f)
                 {
-                    rightIKTarget.position = footPos;
-                    animator.SetIKPosition(AvatarIKGoal.RightFoot, rightIKTarget.position);
-                    
-                }                
-                
+                    animator.SetIKPosition(AvatarIKGoal.RightFoot, footPos);
+
+                }
+
 
             }
         }
